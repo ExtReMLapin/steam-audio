@@ -81,6 +81,7 @@ add_executable(phonon_test
 	OverlapSaveTail.test.cpp
 	ReconstructorStale.test.cpp
 	HRTFNormalization.test.cpp
+	EffectCrossfade.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
