@@ -50,6 +50,7 @@ add_executable(phonon_test
 	Ray.test.cpp
 	Reconstructor.test.cpp
 	ReflectionSimulator.test.cpp
+	ReverbEstimator.test.cpp
 	Sampling.test.cpp
 	Scene.test.cpp
 	Sphere.test.cpp
