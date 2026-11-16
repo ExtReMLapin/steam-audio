@@ -75,6 +75,7 @@ add_executable(phonon_test
 	OverlapSavePartition.test.cpp
 	HybridReverbEstimatorBounds.test.cpp
 	OverlapSaveTail.test.cpp
+	ReconstructorStale.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
