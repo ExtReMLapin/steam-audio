@@ -41,6 +41,7 @@ public:
     static void calcTailGains(const ReverbEffect& reverbEffect,
                               const float* eqCoeffs,
                               const float* reverbTimes,
+                              int samplingRate,
                               float* gains);
 
     void estimate(const EnergyField* energyField,

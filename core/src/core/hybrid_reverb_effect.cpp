@@ -28,7 +28,8 @@ namespace ipl {
 
 HybridReverbEffect::HybridReverbEffect(const AudioSettings& audioSettings,
                                        const HybridReverbEffectSettings& effectSettings)
-    : mFrameSize(audioSettings.frameSize)
+    : mSamplingRate(audioSettings.samplingRate)
+    , mFrameSize(audioSettings.frameSize)
     , mConvolutionEffect(audioSettings, OverlapSaveConvolutionEffectSettings{effectSettings.numChannels, effectSettings.irSize})
     , mParametricEffect(audioSettings)
     , mEQEffect(audioSettings)
@@ -81,7 +82,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectDirectParams&
     }
 
     float _eqCoeffs[Bands::kNumBands];
-    HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, _eqCoeffs);
+    HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, mSamplingRate, _eqCoeffs);
 
     auto gain = 1.0f;
     EQEffect::normalizeGains(_eqCoeffs, gain);
@@ -150,7 +151,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectParams& param
     }
 
     float _eqCoeffs[Bands::kNumBands];
-    HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, _eqCoeffs);
+    HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, mSamplingRate, _eqCoeffs);
 
     auto gain = 1.0f;
     EQEffect::normalizeGains(_eqCoeffs, gain);

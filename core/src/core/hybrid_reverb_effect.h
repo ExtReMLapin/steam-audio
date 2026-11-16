@@ -84,6 +84,7 @@ public:
     int numTailSamplesRemaining() const;
 
 private:
+    int mSamplingRate;
     int mFrameSize;
     OverlapSaveConvolutionEffect mConvolutionEffect;
     ReverbEffect mParametricEffect;

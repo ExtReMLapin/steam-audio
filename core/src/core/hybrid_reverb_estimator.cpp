@@ -111,13 +111,15 @@ void HybridReverbEstimator::estimateHybridEQFromIR(const ImpulseResponse& ir,
 void HybridReverbEstimator::calcTailGains(const ReverbEffect& reverbEffect,
                                           const float* eqCoeffs,
                                           const float* reverbTimes,
+                                          int samplingRate,
                                           float* gains)
 {
-    // An impulse response is reconstructed from noise of variance kNoiseVariance, scaled by sqrt(E / sqrt(4 pi)) for an
-    // energy E in the energy field (Reconstructor::reconstruct). The coefficients are sqrt(4 pi E), so at the transition
-    // the response has a root mean square of eq * sigma / (4 pi)^(3/4). The output of the reverb goes to the omni channel,
-    // after a factor of Y00.
-    auto rms = sqrtf(IReconstructor::kNoiseVariance) / powf(4.0f * Math::kPi, 0.75f);
+    // The omni channel of an impulse response has, per sample, the energy that the energy field holds for a bin divided
+    // by the number of samples in the bin, times Y00 squared times 4 pi, which is 1 (Reconstructor::reconstruct). The
+    // coefficients are sqrt(4 pi Y00 E), so at the transition the response has a root mean square of
+    // eq / ((4 pi)^(1/4) sqrt(samples per bin)). The output of the reverb goes to the omni channel, after a factor of Y00.
+    auto numSamplesPerBin = static_cast<float>(ceilf(EnergyField::kBinDuration * samplingRate));
+    auto rms = 1.0f / (powf(4.0f * Math::kPi, 0.25f) * sqrtf(numSamplesPerBin));
     auto omni = SphericalHarmonics::evaluate(0, 0, Vector3f{});
 
     // The reverb has its own level: the power that its response starts with, which depends on its delay lines and on the
@@ -223,7 +225,7 @@ void HybridReverbEstimator::calcReverbIR(int numSamples,
     }
 
     float _eqCoeffs[Bands::kNumBands];
-    calcTailGains(mReverbEffect, eqCoeffs, reverbTimes, _eqCoeffs);
+    calcTailGains(mReverbEffect, eqCoeffs, reverbTimes, mSamplingRate, _eqCoeffs);
 
     auto overallGain = SphericalHarmonics::evaluate(0, 0, Vector3f{});
     EQEffect::normalizeGains(_eqCoeffs, overallGain);
