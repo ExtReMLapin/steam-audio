@@ -73,6 +73,7 @@ add_executable(phonon_test
 	AmbisonicsBinauralEffect.test.cpp
 	ReconstructorEnvelope.test.cpp
 	OverlapSavePartition.test.cpp
+	HybridReverbEstimatorBounds.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
