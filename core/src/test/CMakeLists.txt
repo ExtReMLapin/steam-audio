@@ -80,6 +80,7 @@ add_executable(phonon_test
 	HybridReverbEstimatorBounds.test.cpp
 	OverlapSaveTail.test.cpp
 	ReconstructorStale.test.cpp
+	HRTFNormalization.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
