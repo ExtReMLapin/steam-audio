@@ -86,6 +86,7 @@ add_executable(phonon_test
 	AmbisonicsNormalization.test.cpp
 	PathingVisibility.test.cpp
 	PathingStaleOutputs.test.cpp
+	BakedLookupProbes.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
