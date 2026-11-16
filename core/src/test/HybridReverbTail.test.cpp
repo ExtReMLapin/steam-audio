@@ -27,7 +27,9 @@
 #include <hybrid_reverb_estimator.h>
 #include <iir.h>
 #include <impulse_response.h>
+#include <propagation_medium.h>
 #include <reconstructor.h>
+#include <reverb_estimator.h>
 
 namespace {
 
@@ -70,12 +72,15 @@ double bandLevel(const std::vector<float>& response, int band, double startTime,
 // Reconstructs an impulse response from an energy field that decays with the given reverb times, then makes it hybrid
 // as the reflection simulator does: the response is kept up to the transition, and the rest comes from the parametric
 // reverb, which gets the reverb times and the delay that estimate() returns. Returns the omni channel of the response of
-// the hybrid reverb to a unit impulse, and, for comparison, the same impulse response without the transition.
+// the hybrid reverb to a unit impulse, and, for comparison, the same impulse response without the transition, and the
+// part of it that each band of the energy field makes on its own.
 void renderHybridAndReference(const float* reverbTimes,
+                              const ipl::AirAbsorptionModel& airAbsorption,
                               float transitionTime,
                               float overlapFraction,
                               std::vector<float>& hybrid,
-                              std::vector<float>& reference)
+                              std::vector<float>& reference,
+                              std::vector<float>* bandReferences)
 {
     const auto duration = 3.0f;
     const auto order = 0;
@@ -91,9 +96,6 @@ void renderHybridAndReference(const float* reverbTimes,
         }
     }
 
-    float noAbsorption[ipl::Bands::kNumBands] = {};
-    ipl::AirAbsorptionModel airAbsorption(noAbsorption, nullptr, nullptr);
-
     ipl::ImpulseResponse impulseResponse(duration, order, kSamplingRate);
     ipl::Reconstructor reconstructor(duration, order, kSamplingRate);
 
@@ -105,11 +107,31 @@ void renderHybridAndReference(const float* reverbTimes,
 
     reference.assign(impulseResponse[0], impulseResponse[0] + impulseResponse.numSamples());
 
-    ipl::Reverb reverb;
+    // The band filters of the reconstructor are single biquads (6 dB per octave out of the band), so in the impulse
+    // response a band that decays faster than its neighbour soon reads the level of the neighbour. Each band alone gives
+    // the level that the tail has to follow. The reconstructor uses the same noise for a band whatever the other bands
+    // hold, so these add up to the impulse response.
     for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
     {
-        reverb.reverbTimes[band] = reverbTimes[band];
+        ipl::EnergyField bandEnergyField(duration, order);
+        bandEnergyField.reset();
+        for (auto bin = 0; bin < energyField.numBins(); ++bin)
+        {
+            bandEnergyField[0][band][bin] = energyField[0][band][bin];
+        }
+
+        ipl::ImpulseResponse bandImpulseResponse(duration, order, kSamplingRate);
+        const ipl::EnergyField* bandEnergyFields[] = { &bandEnergyField };
+        ipl::ImpulseResponse* bandImpulseResponses[] = { &bandImpulseResponse };
+        reconstructor.reconstruct(1, bandEnergyFields, distanceAttenuationCorrectionCurves, &airAbsorption, bandImpulseResponses,
+                                  ipl::ReconstructionType::Linear, duration, order);
+
+        bandReferences[band].assign(bandImpulseResponse[0], bandImpulseResponse[0] + bandImpulseResponse.numSamples());
     }
+
+    // The reverb times of the tail come from the energy field and the air absorption, as in the reflection simulator.
+    ipl::Reverb reverb;
+    ipl::ReverbEstimator::estimate(energyField, airAbsorption, reverb);
 
     ipl::HybridReverbEstimator estimator(duration, kSamplingRate, kFrameSize);
 
@@ -162,11 +184,15 @@ TEST_CASE("The parametric tail of the hybrid reverb starts at the level of the i
     // The same reverb time in every band, and different ones (the tone correction of the reverb depends on them).
     const float flatReverbTimes[ipl::Bands::kNumBands] = { 1.5f, 1.5f, 1.5f };
     const float tiltedReverbTimes[ipl::Bands::kNumBands] = { 2.0f, 1.5f, 1.0f };
+    const float steepReverbTimes[ipl::Bands::kNumBands] = { 3.0f, 2.0f, 1.0f };
 
-    for (const auto* reverbTimes : { flatReverbTimes, tiltedReverbTimes })
+    const float noCoefficients[ipl::Bands::kNumBands] = {};
+    const ipl::AirAbsorptionModel noAirAbsorption(noCoefficients, nullptr, nullptr);
+
+    for (const auto* reverbTimes : { flatReverbTimes, tiltedReverbTimes, steepReverbTimes })
     {
-        std::vector<float> hybrid, reference;
-        renderHybridAndReference(reverbTimes, transitionTime, overlapFraction, hybrid, reference);
+        std::vector<float> hybrid, reference, bandReferences[ipl::Bands::kNumBands];
+        renderHybridAndReference(reverbTimes, noAirAbsorption, transitionTime, overlapFraction, hybrid, reference, bandReferences);
 
         for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
         {
@@ -177,15 +203,56 @@ TEST_CASE("The parametric tail of the hybrid reverb starts at the level of the i
 
             // After it, the tail has to follow the impulse response. The tail is a feedback delay network, so it only
             // approximates the level of the impulse response (it is made of three bands only), but it was 5 to 16 dB
-            // under it when its gain did not take the reverb into account. The transition is early enough that the
-            // bands of the impulse response do not drift apart much yet: their filters overlap, so where one band has
-            // decayed much more than the next one, its level in the impulse response is that of the next one.
-            const auto difference = bandLevel(hybrid, band, 0.55, 0.75) - bandLevel(reference, band, 0.55, 0.75);
-            // 3 dB was enough before the feedback delay network was fixed (loop length, flat band filters). The
-            // reference is still polluted by the overlap of the reconstructor's bands, which is worst for the highest
-            // band of the tilted case (-2.8 dB before the fixes, -3.2 dB after), so allow 4 dB. A tail that does not
-            // follow the impulse response is 5 dB or more off.
-            CHECK(std::fabs(difference) < 4.0);
+            // under it when its gain did not take the reverb into account. It is compared to the part of the impulse
+            // response that the band makes: in the whole response, a band that decays faster than its neighbour reads
+            // the neighbour's level through the overlap of the reconstructor's band filters (3 dB over the tail for the
+            // highest band at 2 / 1.5 / 1 s, 6 dB at 3 / 2 / 1 s), which the tail does not have.
+            const auto difference = bandLevel(hybrid, band, 0.55, 0.75) - bandLevel(bandReferences[band], band, 0.55, 0.75);
+            INFO("tail minus impulse response: " << difference << " dB");
+            CHECK(std::fabs(difference) < 3.0);
+        }
+    }
+}
+
+// With air absorption, the reconstructor, the reverb estimator and the hybrid EQ each apply the air absorption model.
+// They have to agree on it (an amplitude gain at the distance that sound travels in the time of the bin), or the tail
+// starts at another level than the impulse response (EQ against reconstructor), or decays at another rate (reverb times
+// against reconstructor).
+TEST_CASE("The parametric tail of the hybrid reverb follows the impulse response with air absorption", "[HybridReverb]")
+{
+    const auto transitionTime = 0.5f;
+    const auto overlapFraction = 0.25f;
+
+    const ipl::AirAbsorptionModel airAbsorption;
+
+    // Energy fields that decay more slowly in the bands where the air absorbs more, so that every band of the impulse
+    // response decays by 60 dB per second: the bands keep the same level, and none reads its neighbour's through the
+    // overlap of the band filters. 10 / ln(10) * 2 k c dB per second of air absorption in energy.
+    float equalReverbTimes[ipl::Bands::kNumBands];
+    for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
+    {
+        const auto airDecay = 20.0f * log10f(expf(1.0f)) * airAbsorption.coefficients[band] * ipl::PropagationMedium::kSpeedOfSound;
+        equalReverbTimes[band] = 60.0f / (60.0f - airDecay);
+    }
+
+    // And the same field in every band, where the highest band of the impulse response loses 54 dB per second more than
+    // the others.
+    const float flatReverbTimes[ipl::Bands::kNumBands] = { 1.5f, 1.5f, 1.5f };
+
+    for (const float* reverbTimes : { static_cast<const float*>(equalReverbTimes), flatReverbTimes })
+    {
+        std::vector<float> hybrid, reference, bandReferences[ipl::Bands::kNumBands];
+        renderHybridAndReference(reverbTimes, airAbsorption, transitionTime, overlapFraction, hybrid, reference, bandReferences);
+
+        for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
+        {
+            INFO("energy field reverb times " << reverbTimes[0] << " " << reverbTimes[1] << " " << reverbTimes[2] << " s, band " << band);
+
+            CHECK(std::fabs(bandLevel(hybrid, band, 0.2, 0.35) - bandLevel(reference, band, 0.2, 0.35)) < 0.1);
+
+            const auto difference = bandLevel(hybrid, band, 0.55, 0.75) - bandLevel(bandReferences[band], band, 0.55, 0.75);
+            INFO("tail minus impulse response: " << difference << " dB");
+            CHECK(std::fabs(difference) < 3.0);
         }
     }
 }
