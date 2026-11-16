@@ -39,6 +39,7 @@ add_executable(phonon_test
 	HybridReverbTail.test.cpp
 	ReconstructorLevel.test.cpp
 	ReconstructorThreshold.test.cpp
+	SimulationAccumulation.test.cpp
 	IirFilter.test.cpp
 	ImpulseResponse.test.cpp
 	Log.test.cpp
