@@ -89,6 +89,8 @@ void DirectSimulator::simulate(const IScene* scene,
     }
 
     // Constructor for DirectSoundPath sets the default value correctly.
+    auto transmissionCalculated = false;
+
     if (scene && (flags & CalcOcclusion))
     {
         switch (occlusionType)
@@ -99,8 +101,12 @@ void DirectSimulator::simulate(const IScene* scene,
             break;
 
         case OcclusionType::Volumetric:
+            // The transmission is calculated along the paths from the listener to the occluded samples, not only
+            // along the path to the center of the source: the direct effect applies it to the occluded fraction.
             directSoundPath.occlusion =
-                volumetricOcclusion(*scene, listener.origin, source.origin, occlusionRadius, numOcclusionSamples);
+                volumetricOcclusion(*scene, listener.origin, source.origin, occlusionRadius, numOcclusionSamples,
+                                    (flags & CalcTransmission) ? numTransmissionRays : 0, directSoundPath.transmission,
+                                    transmissionCalculated);
             break;
 
         default:
@@ -115,7 +121,10 @@ void DirectSimulator::simulate(const IScene* scene,
 
     if (scene && (flags & CalcTransmission))
     {
-        transmission(*scene, listener.origin, source.origin, directSoundPath.transmission, numTransmissionRays);
+        if (!transmissionCalculated)
+        {
+            transmission(*scene, listener.origin, source.origin, directSoundPath.transmission, numTransmissionRays);
+        }
     }
     else
     {
@@ -153,10 +162,16 @@ float DirectSimulator::volumetricOcclusion(const IScene& scene,
                                            const Vector3f& listenerPosition,
                                            const Vector3f& sourcePosition,
                                            float sourceRadius,
-                                           int numSamples)
+                                           int numSamples,
+                                           int numTransmissionRays,
+                                           float* transmissionFactors,
+                                           bool& transmissionCalculated)
 {
     auto occlusion = 0.0f;
     auto numValidSamples = 0;
+    auto numOccludedSamples = 0;
+
+    float accumulatedTransmission[Bands::kNumBands] = {};
 
     numSamples = std::min(numSamples, static_cast<int>(mSphereVolumeSamples.size(0)));
 
@@ -174,6 +189,30 @@ float DirectSimulator::volumetricOcclusion(const IScene& scene,
         {
             occlusion += 1.0f;
         }
+        else if (numTransmissionRays > 0)
+        {
+            float sampleTransmission[Bands::kNumBands];
+            transmission(scene, listenerPosition, sample, sampleTransmission, numTransmissionRays);
+
+            for (auto j = 0; j < Bands::kNumBands; ++j)
+            {
+                accumulatedTransmission[j] += sampleTransmission[j];
+            }
+
+            ++numOccludedSamples;
+        }
+    }
+
+    // The transmission is the average over the occluded samples. If no sample is occluded, the transmission is not
+    // used by the direct effect, and is set to 1.
+    if (numTransmissionRays > 0 && numValidSamples > 0)
+    {
+        for (auto i = 0; i < Bands::kNumBands; ++i)
+        {
+            transmissionFactors[i] = (numOccludedSamples > 0) ? accumulatedTransmission[i] / numOccludedSamples : 1.0f;
+        }
+
+        transmissionCalculated = true;
     }
 
     if (numValidSamples == 0)

@@ -91,7 +91,10 @@ private:
                               const Vector3f& listenerPosition,
                               const Vector3f& sourcePosition,
                               float sourceRadius,
-                              int numSamples);
+                              int numSamples,
+                              int numTransmissionRays,
+                              float* transmissionFactors,
+                              bool& transmissionCalculated);
 
     void transmission(const IScene& scene,
                       const Vector3f& listenerPosition,
