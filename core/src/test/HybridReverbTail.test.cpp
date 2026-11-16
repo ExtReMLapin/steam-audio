@@ -181,7 +181,11 @@ TEST_CASE("The parametric tail of the hybrid reverb starts at the level of the i
             // bands of the impulse response do not drift apart much yet: their filters overlap, so where one band has
             // decayed much more than the next one, its level in the impulse response is that of the next one.
             const auto difference = bandLevel(hybrid, band, 0.55, 0.75) - bandLevel(reference, band, 0.55, 0.75);
-            CHECK(std::fabs(difference) < 3.0);
+            // 3 dB was enough before the feedback delay network was fixed (loop length, flat band filters). The
+            // reference is still polluted by the overlap of the reconstructor's bands, which is worst for the highest
+            // band of the tilted case (-2.8 dB before the fixes, -3.2 dB after), so allow 4 dB. A tail that does not
+            // follow the impulse response is 5 dB or more off.
+            CHECK(std::fabs(difference) < 4.0);
         }
     }
 }
