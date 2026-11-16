@@ -58,7 +58,9 @@ TEST_CASE("Pathing outputs read while a simulation writes them are never torn", 
     long torn = 0, reads = 0;
     auto t0 = std::chrono::steady_clock::now();
     while (std::chrono::steady_clock::now() - t0 < std::chrono::seconds(3)) {
-        const float* sh = source->pathingOutputs.sh.data();   // what iplSourceGetOutputs hands out
+        float eq[Bands::kNumBands];
+        const float* sh = nullptr;
+        source->readPathingOutputs(eq, &sh);   // what iplSourceGetOutputs hands out
         float e = 0; for (int k = 0; k < 16; ++k) e += sh[k] * sh[k];
         ++reads;
         if (e == 0.0f) continue;

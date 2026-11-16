@@ -131,6 +131,8 @@ SimulationData::SimulationData(bool enableIndirect,
         pathingOutputs.sh.resize(SphericalHarmonics::numCoeffsForOrder(maxOrder));
         pathingState.sh.zero();
         pathingOutputs.sh.zero();
+        pathingOutputsRead.resize(SphericalHarmonics::numCoeffsForOrder(maxOrder));
+        pathingOutputsRead.zero();
     }
 }
 
@@ -142,6 +144,26 @@ SimulationData::~SimulationData()
         reflectionOutputs.tan->releaseSlot(reflectionOutputs.tanSlot);
     }
 #endif
+}
+
+void SimulationData::commitPathingOutputs()
+{
+    std::lock_guard<std::mutex> lock(pathingOutputsMutex);
+
+    memcpy(pathingOutputs.eq, pathingState.eq, Bands::kNumBands * sizeof(float));
+    memcpy(pathingOutputs.sh.data(), pathingState.sh.data(), pathingOutputs.sh.totalSize() * sizeof(float));
+    pathingOutputs.direction = pathingState.direction;
+    pathingOutputs.distanceRatio = pathingState.distanceRatio;
+    pathingOutputs.totalDeviation = pathingState.totalDeviation;
+}
+
+void SimulationData::readPathingOutputs(float* eq, const float** sh)
+{
+    std::lock_guard<std::mutex> lock(pathingOutputsMutex);
+
+    memcpy(eq, pathingOutputs.eq, Bands::kNumBands * sizeof(float));
+    memcpy(pathingOutputsRead.data(), pathingOutputs.sh.data(), pathingOutputs.sh.totalSize() * sizeof(float));
+    *sh = pathingOutputsRead.data();
 }
 
 bool SimulationData::hasSourceChanged() const

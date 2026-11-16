@@ -17,6 +17,8 @@
 #pragma once
 
 #include "baked_reflection_data.h"
+#include <mutex>
+
 #include "direct_effect.h"
 #include "hybrid_reverb_effect.h"
 #include "opencl_device.h"
@@ -152,6 +154,17 @@ public:
                    shared_ptr<TANDevice> tan);
 
     ~SimulationData();
+
+    // Guards pathingOutputs against being read while a simulation writes them.
+    std::mutex pathingOutputsMutex;
+    Array<float> pathingOutputsRead; // Snapshot handed out to the reader.
+
+    // Publishes the pathing state as the pathing outputs, atomically with respect to readPathingOutputs.
+    void commitPathingOutputs();
+
+    // Copies a consistent snapshot of the pathing outputs. *sh points to a buffer owned by this object, which stays
+    // valid until the next call.
+    void readPathingOutputs(float* eq, const float** sh);
 
     bool hasSourceChanged() const;
 };
