@@ -84,6 +84,7 @@ add_executable(phonon_test
 	EffectCrossfade.test.cpp
 	AmbisonicsMaxOrder.test.cpp
 	AmbisonicsNormalization.test.cpp
+	PathingVisibility.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
