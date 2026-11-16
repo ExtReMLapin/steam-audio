@@ -54,6 +54,7 @@ add_executable(phonon_test
 	ReverbEstimator.test.cpp
 	ReverbEffectOnset.test.cpp
 	ReverbEffectDeterminism.test.cpp
+	ReverbEffect.test.cpp
 	Sampling.test.cpp
 	Scene.test.cpp
 	Sphere.test.cpp
