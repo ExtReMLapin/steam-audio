@@ -31,6 +31,7 @@ add_executable(phonon_test
 	CoordinateSpace.test.cpp
 	DirectTransmission.test.cpp
 	DirectOcclusion.test.cpp
+	DelayEffect.test.cpp
 	DirectSimulator.test.cpp
 	EnergyField.test.cpp
 	HybridReverbEstimator.test.cpp
