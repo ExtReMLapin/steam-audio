@@ -88,6 +88,7 @@ add_executable(phonon_test
 	PathingStaleOutputs.test.cpp
 	BakedLookupProbes.test.cpp
 	DeviationModel.test.cpp
+	BakedLookupBatches.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
