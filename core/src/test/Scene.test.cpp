@@ -25,3 +25,52 @@ TEST_CASE("IScene", "[IScene]")
 TEST_CASE("Scene", "[Scene]")
 {
 }
+
+#if defined(IPL_USES_EMBREE) && (defined(IPL_CPU_X86) || defined(IPL_CPU_X64))
+
+#include <embree_device.h>
+#include <scene_factory.h>
+
+using namespace ipl;
+
+TEST_CASE("Hit normals of a rotated instanced mesh are in world space", "[Scene]")
+{
+    auto embree = make_shared<EmbreeDevice>();
+    auto createScene = [&]()
+    {
+        return shared_ptr<IScene>(SceneFactory::create(SceneType::Embree, nullptr, nullptr, nullptr, nullptr, nullptr, embree, nullptr));
+    };
+
+    // A triangle in the plane z = -1; its normal is along the z axis.
+    Vector3f vertices[] = { Vector3f{ -1.0f, -1.0f, -1.0f }, Vector3f{ 1.0f, -1.0f, -1.0f }, Vector3f{ 0.0f, 1.0f, -1.0f } };
+    Triangle triangles[1];
+    triangles[0].indices[0] = 0;
+    triangles[0].indices[1] = 1;
+    triangles[0].indices[2] = 2;
+    int materialIndices[] = { 0 };
+    Material materials[1] = {};
+
+    auto subScene = createScene();
+    subScene->addStaticMesh(subScene->createStaticMesh(3, 1, 1, vertices, triangles, materialIndices, materials));
+    subScene->commit();
+
+    // Rotate by 90 degrees around the y axis (z -> -x), which puts the triangle in the plane x = -1.
+    auto rotation = Matrix4x4f::identityMatrix();
+    rotation(0, 0) = 0.0f;
+    rotation(0, 2) = 1.0f;
+    rotation(2, 0) = -1.0f;
+    rotation(2, 2) = 0.0f;
+
+    auto scene = createScene();
+    scene->addInstancedMesh(scene->createInstancedMesh(subScene, rotation));
+    scene->commit();
+
+    Ray ray{ Vector3f::kZero, -Vector3f::kXAxis };
+    auto hit = scene->closestHit(ray, 0.0f, 10.0f);
+    REQUIRE(hit.isValid());
+    REQUIRE(hit.distance == Approx(1.0f));
+    INFO("normal: " << hit.normal.x() << " " << hit.normal.y() << " " << hit.normal.z());
+    REQUIRE(fabsf(hit.normal.x()) > 0.99f);
+}
+
+#endif
