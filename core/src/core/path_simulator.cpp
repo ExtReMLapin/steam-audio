@@ -156,6 +156,7 @@ bool PathSimulator::findPaths(const Vector3f& source,
     float pathWeights[kMaxPaths];
     int starts[kMaxPaths];
     int ends[kMaxPaths];
+    auto hasProbes = true;
 
     if (scene.isOccluded(listener, source) || forceDirectOcclusion)
     {
@@ -188,7 +189,9 @@ bool PathSimulator::findPaths(const Vector3f& source,
         }
         else
         {
-            return false;
+            // No probes cover the source or the listener, so there is no path. Report that (silence), instead of
+            // leaving the outputs of the previous simulation in place.
+            hasProbes = false;
         }
     }
     else
@@ -211,7 +214,7 @@ bool PathSimulator::findPaths(const Vector3f& source,
 
     calcDistanceRatioForPaths(source, probes, starts, ends, numPaths, paths, pathWeights, distanceRatio);
 
-    return true;
+    return hasProbes;
 }
 
 void PathSimulator::findPathsFromSourceProbe(const IScene& scene,

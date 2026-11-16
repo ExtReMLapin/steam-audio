@@ -85,6 +85,7 @@ add_executable(phonon_test
 	AmbisonicsMaxOrder.test.cpp
 	AmbisonicsNormalization.test.cpp
 	PathingVisibility.test.cpp
+	PathingStaleOutputs.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
