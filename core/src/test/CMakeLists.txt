@@ -22,6 +22,7 @@ add_executable(phonon_test
 	test.cpp
 	AirAbsorption.test.cpp
 	Array.test.cpp
+	Allpass.test.cpp
 	AudioBuffer.test.cpp
 	Bands.test.cpp
 	Box.test.cpp
