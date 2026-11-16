@@ -35,6 +35,7 @@ add_executable(phonon_test
 	Hit.test.cpp
 	HRTFDatabase.test.cpp
 	HybridReverbTail.test.cpp
+	ReconstructorLevel.test.cpp
 	IirFilter.test.cpp
 	ImpulseResponse.test.cpp
 	Log.test.cpp
