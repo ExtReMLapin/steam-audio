@@ -470,8 +470,9 @@ void CSource::getOutputs(IPLSimulationFlags flags,
 
     if (flags & IPL_SIMULATIONFLAGS_PATHING)
     {
-        memcpy(outputs->pathing.eqCoeffs, _source->pathingOutputs.eq, Bands::kNumBands * sizeof(float));
-        outputs->pathing.shCoeffs = _source->pathingOutputs.sh.data();
+        const float* sh = nullptr;
+        _source->readPathingOutputs(outputs->pathing.eqCoeffs, &sh);
+        outputs->pathing.shCoeffs = const_cast<float*>(sh);
     }
 }
 
