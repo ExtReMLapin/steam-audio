@@ -47,7 +47,8 @@ public:
                              ImpulseResponse* const* impulseResponses,
                              ReconstructionType type,
                              float duration,
-                             int order) = 0;
+                             int order,
+                             const float* directDistances = nullptr) = 0;
 
     // Variance of the white noise (uniform in [-1, 1]) that each band of an impulse response is reconstructed from.
     static constexpr float kNoiseVariance = 1.0f / 3.0f;
@@ -77,7 +78,8 @@ public:
                              ImpulseResponse* const* impulseResponses,
                              ReconstructionType type,
                              float duration,
-                             int order) override;
+                             int order,
+                             const float* directDistances = nullptr) override;
 
 private:
     float mMaxDuration;

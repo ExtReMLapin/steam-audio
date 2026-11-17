@@ -57,6 +57,7 @@ add_executable(phonon_test
 	Profiler.test.cpp
 	Quaternion.test.cpp
 	Ray.test.cpp
+	ReflectionAirCommonPath.test.cpp
 	Reconstructor.test.cpp
 	ReconstructorBandSplit.test.cpp
 	ReflectionSimulator.test.cpp

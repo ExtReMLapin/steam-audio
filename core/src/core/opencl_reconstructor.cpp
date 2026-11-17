@@ -102,7 +102,8 @@ void OpenCLReconstructor::reconstruct(int numIRs,
                                       ImpulseResponse* const* impulseResponses,
                                       ReconstructionType type,
                                       float duration,
-                                      int order)
+                                      int order,
+                                      const float* directDistances)
 {
     for (auto i = 0; i < numIRs; i += kBatchSize)
     {
@@ -112,7 +113,8 @@ void OpenCLReconstructor::reconstruct(int numIRs,
         for (auto j = 0; j < batchSize; ++j)
         {
             numBins = std::min(numBins, energyFields[i + j]->numBins());
-            reconstruct(*static_cast<const OpenCLEnergyField*>(energyFields[i + j]), j);
+            reconstruct(*static_cast<const OpenCLEnergyField*>(energyFields[i + j]), j,
+                        (directDistances) ? directDistances[i + j] : 0.0f);
         }
 
         applyIIR(numBins, batchSize);
@@ -136,7 +138,8 @@ void OpenCLReconstructor::reconstruct(int numIRs,
 }
 
 void OpenCLReconstructor::reconstruct(const OpenCLEnergyField& energyField,
-                                      int index)
+                                      int index,
+                                      float directDistance)
 {
     auto _samplingRate = static_cast<cl_uint>(mSamplingRate);
     auto _samplesPerBin = static_cast<cl_uint>(mNumSamples / energyField.numBins());
@@ -155,6 +158,7 @@ void OpenCLReconstructor::reconstruct(const OpenCLEnergyField& energyField,
     clSetKernelArg(mReconstruct.kernel(), argIndex++, sizeof(cl_mem), &mBatchedBandIRs.buffer());
     clSetKernelArg(mReconstruct.kernel(), argIndex++, sizeof(cl_uint), &_offset);
     clSetKernelArg(mReconstruct.kernel(), argIndex++, sizeof(cl_float), &_scale);
+    clSetKernelArg(mReconstruct.kernel(), argIndex++, sizeof(cl_float), &directDistance);
 
     size_t globalSize[] = { static_cast<size_t>(energyField.numBins()), static_cast<size_t>(Bands::kNumBands), static_cast<size_t>(energyField.numChannels()) };
     clEnqueueNDRangeKernel(mRadeonRays->openCL().irUpdateQueue(), mReconstruct.kernel(), 3, nullptr,

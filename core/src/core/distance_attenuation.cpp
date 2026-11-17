@@ -59,12 +59,15 @@ void DistanceAttenuationModel::generateCorrectionCurve(const DistanceAttenuation
                                                        const DistanceAttenuationModel& to,
                                                        int samplingRate,
                                                        int numSamples,
-                                                       float* curve)
+                                                       float* curve,
+                                                       float directDistance)
 {
     for (auto i = 0; i < numSamples; ++i)
     {
         auto t = static_cast<float>(i) / static_cast<float>(samplingRate);
-        auto r = t * PropagationMedium::kSpeedOfSound;
+        // The energy field is simulated with the default model over the whole path, which is the distance between the
+        // source and the listener plus what the delay after the direct sound adds.
+        auto r = directDistance + t * PropagationMedium::kSpeedOfSound;
         curve[i] = to.evaluate(r) / from.evaluate(r);
     }
 }

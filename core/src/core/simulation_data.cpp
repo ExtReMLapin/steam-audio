@@ -89,6 +89,7 @@ SimulationData::SimulationData(bool enableIndirect,
             reflectionState.distanceAttenuationCorrectionCurve.resize(irSize);
             reflectionState.distanceAttenuationCorrectionCurve.zero();
             reflectionState.applyDistanceAttenuationCorrectionCurve = false;
+            reflectionState.distanceAttenuationCorrectionCurveDistance = 0.0f;
 
             if (indirectType == IndirectEffectType::Convolution || indirectType == IndirectEffectType::Hybrid)
             {

@@ -229,6 +229,7 @@ private:
     vector<EnergyField*> mEnergyFieldsForCPUReconstruction;
     vector<const float*> mDistanceAttenuationCorrectionCurves;
     vector<AirAbsorptionModel> mAirAbsorptionModels;
+    vector<float> mDirectDistances;
     vector<ImpulseResponse*> mImpulseResponses;
     ProbeNeighborhood mTempSourcePathingProbes;
     ProbeNeighborhood mTempListenerPathingProbes;
@@ -253,6 +254,9 @@ private:
     void accumulateEnergyFields();
     void lookupBakedReflections();
     void copyEnergyFieldsFromDeviceToHost();
+    // The distance between a source and the listener, which every reflection of the source travels.
+    float directDistance(const SimulationData& source) const;
+
     void generateDistanceCorrectionCurves(int numSamples);
     void reconstructImpulseResponses();
     void estimateReverb();

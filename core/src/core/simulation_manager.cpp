@@ -407,6 +407,11 @@ void SimulationManager::copyEnergyFieldsFromDeviceToHost()
 #endif
 }
 
+float SimulationManager::directDistance(const SimulationData& source) const
+{
+    return (source.reflectionInputs.source.origin - mSharedData->reflection.listener.origin).length();
+}
+
 void SimulationManager::generateDistanceCorrectionCurves(int numSamples)
 {
     PROFILE_FUNCTION();
@@ -418,13 +423,21 @@ void SimulationManager::generateDistanceCorrectionCurves(int numSamples)
         if (!source->reflectionInputs.enabled)
             continue;
 
+        // The curve depends on the distance between the source and the listener, which every reflection travels.
+        auto distance = directDistance(*source);
+
         if (source->reflectionState.prevDistanceAttenuationModel != source->reflectionInputs.distanceAttenuationModel ||
-            source->reflectionInputs.distanceAttenuationModel.dirty)
+            source->reflectionInputs.distanceAttenuationModel.dirty ||
+            (source->reflectionState.applyDistanceAttenuationCorrectionCurve &&
+             source->reflectionState.distanceAttenuationCorrectionCurveDistance != distance))
         {
             DistanceAttenuationModel::generateCorrectionCurve(DistanceAttenuationModel{},
                                                               source->reflectionInputs.distanceAttenuationModel,
                                                               mSamplingRate, numSamples,
-                                                              source->reflectionState.distanceAttenuationCorrectionCurve.data());
+                                                              source->reflectionState.distanceAttenuationCorrectionCurve.data(),
+                                                              distance);
+
+            source->reflectionState.distanceAttenuationCorrectionCurveDistance = distance;
 
             source->reflectionInputs.distanceAttenuationModel.dirty = false;
             source->reflectionState.prevDistanceAttenuationModel = source->reflectionInputs.distanceAttenuationModel;
@@ -453,6 +466,7 @@ void SimulationManager::reconstructImpulseResponses()
     mEnergyFieldsForReconstruction.clear();
     mEnergyFieldsForCPUReconstruction.clear();
     mAirAbsorptionModels.clear();
+    mDirectDistances.clear();
     mImpulseResponses.clear();
 
     for (auto& source : mSourceData[0])
@@ -472,6 +486,7 @@ void SimulationManager::reconstructImpulseResponses()
         }
 
         mAirAbsorptionModels.push_back(source->reflectionInputs.airAbsorptionModel);
+        mDirectDistances.push_back(directDistance(*source));
         mImpulseResponses.push_back(source->reflectionState.impulseResponse.get());
     }
 
@@ -485,7 +500,8 @@ void SimulationManager::reconstructImpulseResponses()
         mCPUReconstructor->reconstruct(static_cast<int>(mImpulseResponses.size()), mEnergyFieldsForCPUReconstruction.data(),
                                        mDistanceAttenuationCorrectionCurves.data(), mAirAbsorptionModels.data(),
                                        mImpulseResponses.data(), mSharedData->reflection.reconstructionType,
-                                       mSharedData->reflection.duration, mSharedData->reflection.order);
+                                       mSharedData->reflection.duration, mSharedData->reflection.order,
+                                       mDirectDistances.data());
     }
 
     if (mEnergyFieldsForReconstruction.size() > 0)
@@ -493,7 +509,8 @@ void SimulationManager::reconstructImpulseResponses()
         mReconstructor->reconstruct(static_cast<int>(mImpulseResponses.size()), mEnergyFieldsForReconstruction.data(),
                                     mDistanceAttenuationCorrectionCurves.data(), mAirAbsorptionModels.data(),
                                     mImpulseResponses.data(), mSharedData->reflection.reconstructionType,
-                                    mSharedData->reflection.duration, mSharedData->reflection.order);
+                                    mSharedData->reflection.duration, mSharedData->reflection.order,
+                                    mDirectDistances.data());
     }
 }
 

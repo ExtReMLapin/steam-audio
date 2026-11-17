@@ -75,6 +75,7 @@ struct ReflectionSimulationState
     int numFramesAccumulated;
     Array<float> distanceAttenuationCorrectionCurve;
     bool applyDistanceAttenuationCorrectionCurve;
+    float distanceAttenuationCorrectionCurveDistance; // The source-listener distance the curve was generated for.
     unique_ptr<ImpulseResponse> impulseResponse;
     unique_ptr<ImpulseResponse> impulseResponseCopy;
     std::atomic<bool> impulseResponseUpdated;
