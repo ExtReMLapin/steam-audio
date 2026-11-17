@@ -205,6 +205,12 @@ TEST_CASE("The parametric reverb decays at each band's reverb time in the middle
 // The hybrid reverb gives each band of its parametric part the level of the impulse response at the transition. A band
 // that is 40 dB under the others (air absorption at the transition time) has to be 40 dB under them, not 24 dB (the
 // floor of the EQ effect), and the shelves of the EQ must not change the other bands.
+//
+// The tolerance is 1.5 dB because the band shelves are of the 4th order (the 8th order measured 0.07 dB at worst, for
+// twice the CPU in the reverb loop). A 4th-order shelf has not finished its step at the edge of a neighboring band's
+// measured range: the worst measured error is 1.36 dB (0.92 and 0.90 dB at the other times), in band 0 (60-500 Hz, whose
+// upper end is 0.7 octave under the 800 Hz edge) when the EQ sets band 0 to -40 dB and band 1 to 0 dB. Every other band
+// and case is within 0.25 dB. The decay test above measured 0.13 dB at worst with this order.
 TEST_CASE("The parametric part of the hybrid reverb has the level of each band.", "[HybridReverb]")
 {
     const float reverbTimes[ipl::Bands::kNumBands] = { 1.0f, 1.0f, 1.0f };

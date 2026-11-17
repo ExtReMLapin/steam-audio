@@ -75,9 +75,9 @@ private:
     int mCurrent;
     bool mIsFirstFrame;
     Allpass mAllpass[kNumAllpasses];
-    IIR8Filterer mAbsorptive[kNumDelays][Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
+    IIR4Filterer mAbsorptive[kNumDelays][Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
     float mAbsorptiveGain[kNumDelays]; // The gain of the lowest band, for each delay line.
-    IIR8Filterer mToneCorrection[Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
+    IIR4Filterer mToneCorrection[Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
     float mToneCorrectionGain; // The gain of the lowest band.
     float mBandGains[Bands::kNumBands]; // From the parameters of the last frame.
     Array<float, 2> mXOld;
@@ -110,12 +110,13 @@ private:
     // centers of two bands the gain goes from the one to the other, which a low shelf, a peaking filter and a high
     // shelf that overlap do not do.
     //
-    // The shelves are of the 8th order. With shelves of the 2nd order, the gain of a band reaches far into its
+    // The shelves are of the 4th order (an 8th order costs twice as much CPU in the loop, for 40 dB steps that are only
+    // slightly sharper: 0.07 dB against 1.4 dB of error in the neighboring band). With shelves of the 2nd order, the gain of a band reaches far into its
     // neighbors: when the reverb times differ a lot (air absorption, absorbing materials), the middle of the middle
     // band decayed several dB faster than its reverb time, and a band set 40 dB under the others was only 33 dB under
     // them 6 kHz above the edge.
     void calcBandFilters(const float* gains,
-                         IIR8* filters);
+                         IIR4* filters);
 
     void apply_float4(const float* reverbTimes,
                       const float* in,
