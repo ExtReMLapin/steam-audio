@@ -165,6 +165,43 @@ private:
 
 
 // --------------------------------------------------------------------------------------------------------------------
+// IIR4
+// --------------------------------------------------------------------------------------------------------------------
+
+// A 4th-order (two biquads) Butterworth filter. Only the shelves are used so far.
+class IIR4
+{
+public:
+    static IIR4 lowShelf(float cutoff, float gain, int samplingRate);
+    static IIR4 highShelf(float cutoff, float gain, int samplingRate);
+
+public:
+    IIR2 m_iir[2];
+};
+
+
+// --------------------------------------------------------------------------------------------------------------------
+// IIR4Filterer
+// --------------------------------------------------------------------------------------------------------------------
+
+class IIR4Filterer
+{
+public:
+    void reset();
+    void copyState(const IIR4Filterer& other);
+
+    void resetFilter();
+    void setFilter(const IIR4& filter);
+
+    float apply(float in);
+    void apply(int size, const float* in, float* out);
+
+private:
+    IIR2Filterer m_filterers[2];
+};
+
+
+// --------------------------------------------------------------------------------------------------------------------
 // IIR8
 // --------------------------------------------------------------------------------------------------------------------
 

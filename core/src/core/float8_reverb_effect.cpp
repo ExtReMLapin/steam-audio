@@ -46,7 +46,7 @@ void IPL_FLOAT8_ATTR ReverbEffect::apply_float8(const float* reverbTimes,
         float absorptiveGains[Bands::kNumBands];
         calcAbsorptiveGains(clampedReverbTimes, mDelayValues[i], absorptiveGains);
 
-        IIR8 iir[Bands::kNumBands];
+        IIR4 iir[Bands::kNumBands];
         calcBandFilters(absorptiveGains, iir);
 
         mAbsorptiveGain[i] = absorptiveGains[0];
@@ -59,7 +59,7 @@ void IPL_FLOAT8_ATTR ReverbEffect::apply_float8(const float* reverbTimes,
     float toneCorrectionGains[Bands::kNumBands];
     calcOutputGains(clampedReverbTimes, toneCorrectionGains);
 
-    IIR8 iir[Bands::kNumBands];
+    IIR4 iir[Bands::kNumBands];
     calcBandFilters(toneCorrectionGains, iir);
 
     mToneCorrectionGain = toneCorrectionGains[0];

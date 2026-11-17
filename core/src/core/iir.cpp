@@ -478,6 +478,81 @@ void IIR2Filterer::apply_float4(int size,
 
 
 // --------------------------------------------------------------------------------------------------------------------
+// IIR4
+// --------------------------------------------------------------------------------------------------------------------
+
+IIR4 IIR4::lowShelf(float cutoff, float gain, int samplingRate)
+{
+    const float q[] = {0.54119610f, 1.3065630f};
+    auto result = IIR4{};
+    for (auto i = 0; i < 2; ++i)
+    {
+        result.m_iir[i] = IIR2::lowShelf(cutoff, q[i], powf(gain, 0.5f), samplingRate);
+    }
+    return result;
+}
+
+IIR4 IIR4::highShelf(float cutoff, float gain, int samplingRate)
+{
+    const float q[] = {0.54119610f, 1.3065630f};
+    auto result = IIR4{};
+    for (auto i = 0; i < 2; ++i)
+    {
+        result.m_iir[i] = IIR2::highShelf(cutoff, q[i], powf(gain, 0.5f), samplingRate);
+    }
+    return result;
+}
+
+
+// --------------------------------------------------------------------------------------------------------------------
+// IIR4Filterer
+// --------------------------------------------------------------------------------------------------------------------
+
+void IIR4Filterer::reset()
+{
+    for (auto i = 0; i < 2; ++i)
+    {
+        m_filterers[i].reset();
+    }
+}
+
+void IIR4Filterer::copyState(const IIR4Filterer& other)
+{
+    for (auto i = 0; i < 2; ++i)
+    {
+        m_filterers[i].copyState(other.m_filterers[i]);
+    }
+}
+
+void IIR4Filterer::resetFilter()
+{
+    for (auto i = 0; i < 2; ++i)
+    {
+        m_filterers[i].resetFilter();
+    }
+}
+
+void IIR4Filterer::setFilter(const IIR4& filter)
+{
+    for (auto i = 0; i < 2; ++i)
+    {
+        m_filterers[i].setFilter(filter.m_iir[i]);
+    }
+}
+
+float IIR4Filterer::apply(float in)
+{
+    return m_filterers[1].apply(m_filterers[0].apply(in));
+}
+
+void IIR4Filterer::apply(int size, const float* in, float* out)
+{
+    m_filterers[0].apply(size, in, out);
+    m_filterers[1].apply(size, out, out);
+}
+
+
+// --------------------------------------------------------------------------------------------------------------------
 // IIR8
 // --------------------------------------------------------------------------------------------------------------------
 
