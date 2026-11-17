@@ -49,6 +49,7 @@ add_executable(phonon_test
 	ReflectionSimulator.test.cpp
 	ReverbEffect.test.cpp
 	ReverbEffectBands.test.cpp
+	ReverbEffectSteepBands.test.cpp
 	Sampling.test.cpp
 	Scene.test.cpp
 	Sphere.test.cpp
