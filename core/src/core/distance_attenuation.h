@@ -49,7 +49,8 @@ public:
                                         const DistanceAttenuationModel& to,
                                         int samplingRate,
                                         int numSamples,
-                                        float* curve);
+                                        float* curve,
+                                        float directDistance = 0.0f);
 
 private:
     static const float kDefaultMinDistance;

@@ -657,7 +657,8 @@ kernel void reconstructImpulseResponse(global int* energy,
                                        global float* whiteNoise,
                                        global float* impulseResponse,
                                        uint offset,
-									   float scale)
+									   float scale,
+                                       float directDistance)
 {
     size_t bin = get_global_id(0);
     size_t band = get_global_id(1);
@@ -704,7 +705,8 @@ kernel void reconstructImpulseResponse(global int* energy,
 
         float normalization = e / sqrt(e0 * sqrt(4.0f * PI));
 
-        normalization *= exp(-airAbsorption[band] * SPEED_OF_SOUND * ((bin + 0.5f) * samplesPerBin * (1.0f / samplingRate)));
+        // Every reflection also travels the distance between the source and the listener.
+        normalization *= exp(-airAbsorption[band] * (directDistance + SPEED_OF_SOUND * ((bin + 0.5f) * samplesPerBin * (1.0f / samplingRate))));
 
         for (int i = 0; i < samplesPerBin; ++i)
         {

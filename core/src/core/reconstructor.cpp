@@ -78,7 +78,8 @@ void Reconstructor::reconstruct(int numIRs,
                                 ImpulseResponse* const* impulseResponses,
                                 ReconstructionType type,
                                 float duration,
-                                int order)
+                                int order,
+                                const float* directDistances)
 {
     PROFILE_FUNCTION();
 
@@ -86,6 +87,10 @@ void Reconstructor::reconstruct(int numIRs,
     {
         const auto& energyField = *energyFields[i];
         auto& impulseResponse = *impulseResponses[i];
+
+        // The energy field holds the delay of each reflection after the direct sound. Every reflection also travels
+        // the distance between the source and the listener, and is absorbed by the air over it.
+        auto directDistance = (directDistances) ? directDistances[i] : 0.0f;
 
         auto numChannels = SphericalHarmonics::numCoeffsForOrder(order);
         auto numSamples = static_cast<int>(ceilf(duration * mSamplingRate));
@@ -161,7 +166,7 @@ void Reconstructor::reconstruct(int numIRs,
                     }
 
                     // The air absorption model gives an amplitude gain, like the normalization.
-                    normalization *= airAbsorptionModels[i].evaluate(PropagationMedium::kSpeedOfSound * ((iBin + 0.5f) * numSamplesPerBin * (1.0f / mSamplingRate)), iBand);
+                    normalization *= airAbsorptionModels[i].evaluate(directDistance + PropagationMedium::kSpeedOfSound * ((iBin + 0.5f) * numSamplesPerBin * (1.0f / mSamplingRate)), iBand);
 
                     auto iSample = iBin * numSamplesPerBin;
                     ArrayMath::scale(numBinSamples, &mBandIRs[iBand][iSample], normalization, &mBandIRs[iBand][iSample]);

@@ -47,7 +47,8 @@ public:
                              ImpulseResponse* const* impulseResponses,
                              ReconstructionType type,
                              float duration,
-                             int order) = 0;
+                             int order,
+                             const float* directDistances = nullptr) = 0;
 
 protected:
     static const float kEnergyThreshold;
@@ -74,7 +75,8 @@ public:
                              ImpulseResponse* const* impulseResponses,
                              ReconstructionType type,
                              float duration,
-                             int order) override;
+                             int order,
+                             const float* directDistances = nullptr) override;
 
 private:
     float mMaxDuration;

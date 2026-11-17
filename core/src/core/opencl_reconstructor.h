@@ -45,7 +45,8 @@ public:
                              ImpulseResponse* const* impulseResponses,
                              ReconstructionType type,
                              float duration,
-                             int order) override;
+                             int order,
+                             const float* directDistances = nullptr) override;
 
 private:
     static const int kBatchSize = 8;
@@ -67,7 +68,8 @@ private:
     OpenCLKernel mCombine;
 
     void reconstruct(const OpenCLEnergyField& energyField,
-                     int index);
+                     int index,
+                     float directDistance);
 
     void applyIIR(int numBins,
                   int batchSize);
