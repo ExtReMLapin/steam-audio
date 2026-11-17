@@ -141,7 +141,8 @@ void HybridReverbEstimator::estimate(const EnergyField* energyField,
                                      float overlapFraction,
                                      int order,
                                      float* eqCoeffs,
-                                     int& delay)
+                                     int& delay,
+                                     float directDistance)
 {
     PROFILE_FUNCTION();
 
@@ -162,7 +163,7 @@ void HybridReverbEstimator::estimate(const EnergyField* energyField,
         auto distance = PropagationMedium::kSpeedOfSound * (cutoffBin + 0.5f) * EnergyField::kBinDuration;
         for (auto i = 0; i < Bands::kNumBands; ++i)
         {
-            eqCoeffs[i] = sqrtf(4.0f * Math::kPi * (*energyField)[0][i][cutoffBin]) * airAbsorption.evaluate(distance, i);
+            eqCoeffs[i] = sqrtf(4.0f * Math::kPi * (*energyField)[0][i][cutoffBin]) * airAbsorption.evaluate(directDistance + distance, i);
         }
     }
     else

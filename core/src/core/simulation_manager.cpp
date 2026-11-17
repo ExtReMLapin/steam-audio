@@ -574,7 +574,8 @@ void SimulationManager::estimateHybridReverb()
         mHybridReverbEstimator->estimate(energyField, source->reflectionOutputs.reverb,
                                          source->reflectionInputs.airAbsorptionModel, *source->reflectionState.impulseResponse,
                                          source->reflectionInputs.transitionTime, source->reflectionInputs.overlapFraction,
-                                         mSharedData->reflection.order, source->reflectionOutputs.hybridEQ, source->reflectionOutputs.hybridDelay);
+                                         mSharedData->reflection.order, source->reflectionOutputs.hybridEQ, source->reflectionOutputs.hybridDelay,
+                                         directDistance(*source));
     }
 }
 

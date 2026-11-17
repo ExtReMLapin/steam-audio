@@ -52,7 +52,8 @@ public:
                   float overlapFraction,
                   int order,
                   float* eqCoeffs,
-                  int& delay);
+                  int& delay,
+                  float directDistance = 0.0f); // Between the source and the listener.
 
 private:
     float mMaxDuration;

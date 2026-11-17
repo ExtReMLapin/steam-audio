@@ -189,3 +189,59 @@ TEST_CASE("The distance attenuation correction curve counts the distance between
 }
 
 #endif
+
+#include <hybrid_reverb_estimator.h>
+
+#if !defined(IPL_ENABLE_OCTAVE_BANDS)
+
+// The hybrid reverb takes the level of each band at the transition from the energy field, absorbed by the air: over
+// the distance between the source and the listener too, like the reflections before it.
+TEST_CASE("The hybrid reverb EQ counts the distance between the source and the listener in its air absorption.", "[HybridReverbEstimator]")
+{
+    const auto samplingRate = 48000;
+    const auto duration = 1.0f;
+    const auto transitionTime = 0.5f;
+    const auto overlapFraction = 0.25f;
+
+    ipl::EnergyField energyField(duration, 0);
+    for (auto bin = 0; bin < energyField.numBins(); ++bin)
+    {
+        for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
+        {
+            energyField[0][band][bin] = expf(-bin * ipl::EnergyField::kBinDuration / 0.2f);
+        }
+    }
+
+    ipl::Reverb reverb;
+    for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
+    {
+        reverb.reverbTimes[band] = 1.0f;
+    }
+
+    ipl::HybridReverbEstimator estimator(duration, samplingRate, 1024);
+    const ipl::AirAbsorptionModel airAbsorption;
+
+    auto estimateEQ = [&](float directDistance, float* eq)
+    {
+        ipl::ImpulseResponse ir(duration, 0, samplingRate);
+        auto delay = 0;
+        estimator.estimate(&energyField, reverb, airAbsorption, ir, transitionTime, overlapFraction, 0, eq, delay,
+                           directDistance);
+    };
+
+    float nearEQ[ipl::Bands::kNumBands];
+    estimateEQ(0.0f, nearEQ);
+
+    const auto directDistance = 100.0f;
+    float farEQ[ipl::Bands::kNumBands];
+    estimateEQ(directDistance, farEQ);
+
+    // The cutoff bin is the same for both, so the ratio is the absorption over the direct distance alone.
+    for (auto band = 0; band < ipl::Bands::kNumBands; ++band)
+    {
+        INFO("band " << band);
+        CHECK(farEQ[band] / nearEQ[band] == Approx(airAbsorption.evaluate(directDistance, band)).epsilon(1e-3));
+    }
+}
+
+#endif
