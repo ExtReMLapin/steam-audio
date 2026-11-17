@@ -83,9 +83,8 @@ private:
     float mMaxDuration;
     int mMaxOrder;
     int mSamplingRate;
-    Array<float, 2> mWhiteNoise;
+    Array<float, 2> mWhiteNoise; // Band-limited noise, one row per band.
     Array<float, 2> mBandIRs;
-    Array<IIRFilterer> mFilters;
 };
 
 }
