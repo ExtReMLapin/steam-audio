@@ -62,6 +62,11 @@ ReverbEffect::ReverbEffect(const AudioSettings& audioSettings)
 
     mToneCorrectionGain = 1.0f;
 
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        mBandGains[i] = 1.0f;
+    }
+
     mXOld.resize(kNumDelays, audioSettings.frameSize);
     mXNew.resize(kNumDelays, audioSettings.frameSize);
 
@@ -100,6 +105,11 @@ AudioEffectState ReverbEffect::apply(const ReverbEffectParams& params,
 
     out.makeSilent();
 
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        mBandGains[i] = (params.bandGains) ? params.bandGains[i] : 1.0f;
+    }
+
     (this->*mApplyDispatch)(params.reverb->reverbTimes, in[0], out[0]);
 
     if (params.reverb)
@@ -122,8 +132,12 @@ AudioEffectState ReverbEffect::apply(const ReverbEffectParams& params,
 
 AudioEffectState ReverbEffect::tailApply(const AudioBuffer& in, AudioBuffer& out)
 {
+    float prevBandGains[Bands::kNumBands];
+    memcpy(prevBandGains, mBandGains, sizeof(prevBandGains));
+
     ReverbEffectParams prevParams{};
     prevParams.reverb = &mPrevReverb;
+    prevParams.bandGains = prevBandGains;
 
     return apply(prevParams, in, out);
 }
@@ -157,7 +171,7 @@ void ReverbEffect::apply_float4(const float* reverbTimes,
         float absorptiveGains[Bands::kNumBands];
         calcAbsorptiveGains(clampedReverbTimes, mDelayValues[i], absorptiveGains);
 
-        IIR iir[Bands::kNumBands];
+        IIR8 iir[Bands::kNumBands];
         calcBandFilters(absorptiveGains, iir);
 
         mAbsorptiveGain[i] = absorptiveGains[0];
@@ -168,9 +182,9 @@ void ReverbEffect::apply_float4(const float* reverbTimes,
     }
 
     float toneCorrectionGains[Bands::kNumBands];
-    calcToneCorrectionGains(clampedReverbTimes, toneCorrectionGains);
+    calcOutputGains(clampedReverbTimes, toneCorrectionGains);
 
-    IIR iir[Bands::kNumBands];
+    IIR8 iir[Bands::kNumBands];
     calcBandFilters(toneCorrectionGains, iir);
 
     mToneCorrectionGain = toneCorrectionGains[0];
@@ -397,12 +411,32 @@ void ReverbEffect::calcToneCorrectionGains(const float* reverbTimes,
     }
 }
 
+void ReverbEffect::calcOutputGains(const float* reverbTimes,
+                                   float* gains)
+{
+    calcToneCorrectionGains(reverbTimes, gains);
+
+    auto maxGain = 0.0f;
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        gains[i] *= std::max(mBandGains[i], 0.0f);
+        maxGain = std::max(maxGain, gains[i]);
+    }
+
+    // A band with no gain at all would make the ratios between bands infinite: it is kept 100 dB under the loudest.
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        gains[i] = std::max(gains[i], 1e-5f * maxGain);
+    }
+}
+
 void ReverbEffect::calcBandFilters(const float* gains,
-                                   IIR* filters)
+                                   IIR8* filters)
 {
     for (auto i = 1; i < Bands::kNumBands; ++i)
     {
-        filters[i] = IIR::highShelf(Bands::kLowCutoffFrequencies[i], gains[i] / gains[i - 1], mSamplingRate);
+        auto ratio = (gains[i - 1] > 0.0f) ? gains[i] / gains[i - 1] : 1.0f;
+        filters[i] = IIR8::highShelf(Bands::kLowCutoffFrequencies[i], ratio, mSamplingRate);
     }
 }
 

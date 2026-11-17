@@ -84,8 +84,17 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectDirectParams&
     float _eqCoeffs[Bands::kNumBands];
     HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, mSamplingRate, _eqCoeffs);
 
+    // The reverb applies the gain of each band, with its tone correction. The EQ effect cannot set a band more than
+    // 24 dB under the loudest one, and its shelves reach into the neighboring bands.
+    float bandGains[Bands::kNumBands];
+    float flatGains[Bands::kNumBands];
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        bandGains[i] = _eqCoeffs[i];
+        flatGains[i] = 1.0f;
+    }
+
     auto gain = 1.0f;
-    EQEffect::normalizeGains(_eqCoeffs, gain);
 
     DelayEffectParams delayParams{};
     delayParams.delayInSamples = params.delay;
@@ -93,7 +102,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectDirectParams&
     mDelayEffectState = mDelayEffect.apply(delayParams, in, mDelayTemp);
 
     EQEffectParams eqParams{};
-    eqParams.gains = _eqCoeffs;
+    eqParams.gains = flatGains;
 
     mEQEffectState = mEQEffect.apply(eqParams, mDelayTemp, mEQTemp);
 
@@ -104,6 +113,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectDirectParams&
 
     ReverbEffectParams reverbParams{};
     reverbParams.reverb = params.reverb;
+    reverbParams.bandGains = bandGains;
 
     mParametricEffectState = mParametricEffect.apply(reverbParams, mGainTemp, mReverbTemp);
 
@@ -153,8 +163,17 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectParams& param
     float _eqCoeffs[Bands::kNumBands];
     HybridReverbEstimator::calcTailGains(mParametricEffect, params.eqCoeffs, params.reverb->reverbTimes, mSamplingRate, _eqCoeffs);
 
+    // The reverb applies the gain of each band, with its tone correction. The EQ effect cannot set a band more than
+    // 24 dB under the loudest one, and its shelves reach into the neighboring bands.
+    float bandGains[Bands::kNumBands];
+    float flatGains[Bands::kNumBands];
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        bandGains[i] = _eqCoeffs[i];
+        flatGains[i] = 1.0f;
+    }
+
     auto gain = 1.0f;
-    EQEffect::normalizeGains(_eqCoeffs, gain);
 
     DelayEffectParams delayParams{};
     delayParams.delayInSamples = params.delay;
@@ -162,7 +181,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectParams& param
     mDelayEffectState = mDelayEffect.apply(delayParams, in, mDelayTemp);
 
     EQEffectParams eqParams{};
-    eqParams.gains = _eqCoeffs;
+    eqParams.gains = flatGains;
 
     mEQEffectState = mEQEffect.apply(eqParams, mDelayTemp, mEQTemp);
 
@@ -173,6 +192,7 @@ AudioEffectState HybridReverbEffect::apply(const HybridReverbEffectParams& param
 
     ReverbEffectParams reverbParams{};
     reverbParams.reverb = params.reverb;
+    reverbParams.bandGains = bandGains;
 
     mParametricEffectState = mParametricEffect.apply(reverbParams, mGainTemp, mReverbTemp);
 

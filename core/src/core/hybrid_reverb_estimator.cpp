@@ -228,8 +228,16 @@ void HybridReverbEstimator::calcReverbIR(int numSamples,
     float _eqCoeffs[Bands::kNumBands];
     calcTailGains(mReverbEffect, eqCoeffs, reverbTimes, mSamplingRate, _eqCoeffs);
 
-    auto overallGain = SphericalHarmonics::evaluate(0, 0, Vector3f{});
-    EQEffect::normalizeGains(_eqCoeffs, overallGain);
+    // As in HybridReverbEffect, the reverb applies the gain of each band.
+    float bandGains[Bands::kNumBands];
+    float flatGains[Bands::kNumBands];
+    for (auto i = 0; i < Bands::kNumBands; ++i)
+    {
+        bandGains[i] = SphericalHarmonics::evaluate(0, 0, Vector3f{}) * _eqCoeffs[i];
+        flatGains[i] = 1.0f;
+    }
+
+    auto overallGain = 1.0f;
 
     Reverb reverb;
     for (auto i = 0; i < Bands::kNumBands; ++i)
@@ -251,7 +259,7 @@ void HybridReverbEstimator::calcReverbIR(int numSamples,
         }
 
         EQEffectParams eqParams{};
-        eqParams.gains = _eqCoeffs;
+        eqParams.gains = flatGains;
 
         mEQEffect.apply(eqParams, temp0, temp1);
 
@@ -259,6 +267,7 @@ void HybridReverbEstimator::calcReverbIR(int numSamples,
 
         ReverbEffectParams reverbParams{};
         reverbParams.reverb = &reverb;
+        reverbParams.bandGains = bandGains;
 
         mReverbEffect.apply(reverbParams, temp1, temp0);
 

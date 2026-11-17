@@ -32,6 +32,10 @@ namespace ipl {
 struct ReverbEffectParams
 {
     const Reverb* reverb = nullptr;
+
+    // Optional amplitude gain of each band, applied at the output with the tone correction, by the same band filters.
+    // Unlike the EQ effect, any ratio between bands is allowed. nullptr is a gain of 1 in every band.
+    const float* bandGains = nullptr;
 };
 
 class ReverbEffect
@@ -71,10 +75,11 @@ private:
     int mCurrent;
     bool mIsFirstFrame;
     Allpass mAllpass[kNumAllpasses];
-    IIRFilterer mAbsorptive[kNumDelays][Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
+    IIR8Filterer mAbsorptive[kNumDelays][Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
     float mAbsorptiveGain[kNumDelays]; // The gain of the lowest band, for each delay line.
-    IIRFilterer mToneCorrection[Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
+    IIR8Filterer mToneCorrection[Bands::kNumBands][2]; // Steps up or down at the boundaries between bands (band 0 is not used).
     float mToneCorrectionGain; // The gain of the lowest band.
+    float mBandGains[Bands::kNumBands]; // From the parameters of the last frame.
     Array<float, 2> mXOld;
     Array<float, 2> mXNew;
     Reverb mPrevReverb;
@@ -95,13 +100,22 @@ private:
     void calcToneCorrectionGains(const float* reverbTimes,
                                  float* gains) const;
 
+    // The tone correction times the gain of each band from the parameters.
+    void calcOutputGains(const float* reverbTimes,
+                         float* gains);
+
     // Calculates the filters that give each band its gain. The gain of the lowest band is applied separately, and
     // filters[i] is the high shelf at the boundary between band i - 1 and band i, which multiplies what is above it
     // by gains[i] / gains[i - 1]. The same gain in every band (whatever it is) is no filter at all, and between the
     // centers of two bands the gain goes from the one to the other, which a low shelf, a peaking filter and a high
     // shelf that overlap do not do.
+    //
+    // The shelves are of the 8th order. With shelves of the 2nd order, the gain of a band reaches far into its
+    // neighbors: when the reverb times differ a lot (air absorption, absorbing materials), the middle of the middle
+    // band decayed several dB faster than its reverb time, and a band set 40 dB under the others was only 33 dB under
+    // them 6 kHz above the edge.
     void calcBandFilters(const float* gains,
-                         IIR* filters);
+                         IIR8* filters);
 
     void apply_float4(const float* reverbTimes,
                       const float* in,

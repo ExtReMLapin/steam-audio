@@ -65,6 +65,7 @@ add_executable(phonon_test
 	ReverbEffectDeterminism.test.cpp
 	ReverbEffect.test.cpp
 	ReverbEffectBands.test.cpp
+	ReverbEffectSteepBands.test.cpp
 	ReverbScale.test.cpp
 	Sampling.test.cpp
 	Scene.test.cpp
