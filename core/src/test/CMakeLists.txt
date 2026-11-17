@@ -94,6 +94,7 @@ add_executable(phonon_test
 	DeviationModel.test.cpp
 	BakedLookupBatches.test.cpp
 	PathingOutputRace.test.cpp
+	AmbisonicsHRTFProjection.test.cpp
 )
 
 target_link_libraries(phonon_test PRIVATE core hrtf Catch::Catch)
