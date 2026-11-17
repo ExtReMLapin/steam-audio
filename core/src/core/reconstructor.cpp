@@ -21,6 +21,7 @@
 #include <random>
 
 #include "array_math.h"
+#include "fft.h"
 #include "log.h"
 #include "math_functions.h"
 #include "profiler.h"
@@ -49,7 +50,6 @@ Reconstructor::Reconstructor(float maxDuration,
     , mSamplingRate(samplingRate)
     , mWhiteNoise(Bands::kNumBands, static_cast<int>(ceilf(maxDuration * samplingRate)))
     , mBandIRs(Bands::kNumBands, static_cast<int>(ceilf(maxDuration * samplingRate)))
-    , mFilters(Bands::kNumBands)
 {
     // One generator shared by all bands, so that each band gets a different part of the sequence. The same noise in
     // every band is summed coherently by the band filters, which leaves a dip of up to 7 dB around 800 Hz and 8 kHz,
@@ -59,19 +59,55 @@ Reconstructor::Reconstructor(float maxDuration,
     std::uniform_real_distribution<float> uniformDistribution(-1.0f, 1.0f);
     auto uniformRandom = std::bind(uniformDistribution, std::ref(randomGenerator));
 
-    for (auto i = 0; i < Bands::kNumBands; ++i)
-    {
-        for (auto j = 0u; j < mWhiteNoise.size(1); ++j)
-        {
-            mWhiteNoise[i][j] = uniformRandom();
-        }
-    }
+    // The noise of each band is band-limited here, once, rather than the response of each band being filtered after
+    // it is shaped by the energy field. The envelope varies over bins of 10 ms, so shaping band-limited noise leaves
+    // its spectrum in the band. Band filters applied after the envelope (second-order, 6 dB per octave) let a band that
+    // decays slowly leak into a band that decays fast: once air absorption makes the highest band decay much faster than
+    // the middle one, the highs of the response decay at the rate of the middle band.
+    //
+    // The bands get independent noise, so the response of a flat energy field is flat if the squared magnitudes of the
+    // band filters add up to 1. Each band edge is a crossover of a third of an octave, raised cosine in log frequency,
+    // and nothing of a band reaches past it. The filters have zero phase, and the noise is filtered circularly, so
+    // there is no transient at either end.
+    FFT fft(static_cast<int>(mWhiteNoise.size(1)));
+    Array<float> noise(fft.numRealSamples);
+    Array<complex_t> spectrum(fft.numComplexSamples);
 
-    IIR filters[Bands::kNumBands];
-    IIR::bandFilters(filters, samplingRate);
+    auto crossover = [](float frequency, float edgeFrequency)
+    {
+        const auto kHalfWidth = 1.0f / 6.0f; // octaves
+        if (frequency <= 0.0f)
+            return 0.0f;
+
+        auto octaves = log2f(frequency / edgeFrequency);
+        if (octaves <= -kHalfWidth)
+            return 0.0f;
+        if (octaves >= kHalfWidth)
+            return 1.0f;
+
+        return 0.5f - 0.5f * cosf(Math::kPi * (octaves + kHalfWidth) / (2.0f * kHalfWidth));
+    };
+
     for (auto i = 0; i < Bands::kNumBands; ++i)
     {
-        mFilters[i].setFilter(filters[i]);
+        for (auto j = 0; j < fft.numRealSamples; ++j)
+        {
+            noise[j] = uniformRandom();
+        }
+
+        fft.applyForward(noise.data(), spectrum.data());
+
+        for (auto k = 0; k < fft.numComplexSamples; ++k)
+        {
+            auto frequency = (static_cast<float>(k) * samplingRate) / fft.numRealSamples;
+            auto above = (i == 0) ? 1.0f : crossover(frequency, Bands::kLowCutoffFrequencies[i]);
+            auto aboveNext = (i == Bands::kNumBands - 1) ? 0.0f : crossover(frequency, Bands::kLowCutoffFrequencies[i + 1]);
+            spectrum[k] *= sqrtf(std::max(above - aboveNext, 0.0f));
+        }
+
+        fft.applyInverse(spectrum.data(), noise.data());
+
+        memcpy(mWhiteNoise[i], noise.data(), mWhiteNoise.size(1) * sizeof(float));
     }
 }
 
@@ -172,15 +208,10 @@ void Reconstructor::reconstruct(int numIRs,
                 }
             }
 
-            for (auto iBand = 0; iBand < Bands::kNumBands; ++iBand)
-            {
-                mFilters[iBand].reset();
-            }
-
-            mFilters[0].apply(numSamples, mBandIRs[0], impulseResponse[iChannel]);
+            // The noise of each band is band-limited already.
+            memcpy(impulseResponse[iChannel], mBandIRs[0], numSamples * sizeof(float));
             for (auto iBand = 1; iBand < Bands::kNumBands; ++iBand)
             {
-                mFilters[iBand].apply(numSamples, mBandIRs[iBand], mBandIRs[iBand]);
                 ArrayMath::add(numSamples, impulseResponse[iChannel], mBandIRs[iBand], impulseResponse[iChannel]);
             }
 
